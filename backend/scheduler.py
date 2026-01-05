@@ -327,28 +327,66 @@ class Scheduler:
         
         gantt_chart = []
         current_time = 0
-        completed = []
+        all_completed = []
         
         # Process queues in order (0 = highest priority)
         for level in sorted(queues.keys()):
             queue_processes = queues[level]
             tq = time_quantums[level] if level < len(time_quantums) else time_quantums[-1]
             
-            # Use Round Robin for each queue
-            queue_gantt, _ = Scheduler.round_robin(queue_processes, tq)
+            # Simulate Round Robin for this queue
+            queue = []
+            remaining = sorted(queue_processes, key=lambda p: p.arrival_time)
+            completed = []
             
-            # Adjust times based on current_time
-            for entry in queue_gantt:
-                entry['start'] += current_time
-                entry['end'] += current_time
-                gantt_chart.append(entry)
+            # Adjust arrival times relative to current_time
+            for p in remaining:
+                if p.arrival_time < current_time:
+                    p.arrival_time = current_time
             
-            if queue_gantt:
-                current_time = max(entry['end'] for entry in queue_gantt)
+            while remaining or queue:
+                # Add newly arrived processes to queue
+                while remaining and remaining[0].arrival_time <= current_time:
+                    queue.append(remaining.pop(0))
+                
+                if not queue:
+                    if remaining:
+                        current_time = remaining[0].arrival_time
+                    continue
+                
+                process = queue.pop(0)
+                
+                if process.start_time == -1:
+                    process.start_time = current_time
+                    process.response_time = current_time - process.arrival_time
+                
+                # Execute for time quantum or remaining time
+                exec_time = min(tq, process.remaining_time)
+                start = current_time
+                current_time += exec_time
+                process.remaining_time -= exec_time
+                
+                gantt_chart.append({
+                    'pid': process.pid,
+                    'start': start,
+                    'end': current_time
+                })
+                
+                # Add newly arrived processes
+                while remaining and remaining[0].arrival_time <= current_time:
+                    queue.append(remaining.pop(0))
+                
+                if process.remaining_time > 0:
+                    queue.append(process)
+                else:
+                    process.completion_time = current_time
+                    process.turnaround_time = process.completion_time - process.arrival_time
+                    process.waiting_time = process.turnaround_time - process.burst_time
+                    completed.append(process)
             
-            completed.extend(queue_processes)
+            all_completed.extend(completed)
         
-        metrics = Scheduler.calculate_metrics(completed)
+        metrics = Scheduler.calculate_metrics(all_completed)
         return gantt_chart, metrics
     
     @staticmethod
