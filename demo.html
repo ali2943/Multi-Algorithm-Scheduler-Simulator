@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Scheduler Simulator - Standalone Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        select, input[type="number"], textarea {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        textarea {
+            font-family: monospace;
+            min-height: 100px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .gantt-chart {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .gantt-timeline {
+            display: flex;
+            min-height: 80px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            margin: 20px 0;
+        }
+
+        .gantt-block {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid #ddd;
+            padding: 10px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-card h3 {
+            font-size: 0.95em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .metric-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🖥️ CPU Scheduler Simulator</h1>
+        <p>Standalone Demo - FCFS, SJF, SRTF, RR, Priority, MLQ, MLFQ</p>
+    </div>
+
+    <div class="container">
+        <div class="control-panel">
+            <div class="control-group">
+                <label>Scheduling Algorithm</label>
+                <select id="algorithm">
+                    <option value="fcfs">First Come First Serve (FCFS)</option>
+                    <option value="sjf">Shortest Job First (SJF)</option>
+                    <option value="srtf">Shortest Remaining Time First (SRTF)</option>
+                    <option value="rr">Round Robin (RR)</option>
+                    <option value="priority">Priority Scheduling</option>
+                    <option value="mlq">Multi-Level Queue (MLQ)</option>
+                    <option value="mlfq">Multi-Level Feedback Queue (MLFQ)</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="timeQuantumGroup" style="display:none;">
+                <label>Time Quantum</label>
+                <input type="number" id="timeQuantum" value="2" min="1">
+            </div>
+
+            <div class="control-group" id="preemptiveGroup" style="display:none;">
+                <label>
+                    <input type="checkbox" id="preemptive"> Preemptive Mode
+                </label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Process Data (JSON format)</label>
+            <textarea id="processData">[
+  {"pid": 1, "arrivalTime": 0, "burstTime": 5, "priority": 2, "queueLevel": 0},
+  {"pid": 2, "arrivalTime": 1, "burstTime": 3, "priority": 1, "queueLevel": 0},
+  {"pid": 3, "arrivalTime": 2, "burstTime": 8, "priority": 3, "queueLevel": 1},
+  {"pid": 4, "arrivalTime": 3, "burstTime": 6, "priority": 2, "queueLevel": 0}
+]</textarea>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button class="btn-primary" onclick="runSimulation()">Run Simulation</button>
+            <button class="btn-secondary" onclick="loadSample()">Load Different Sample</button>
+        </div>
+
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="info" class="info">
+            <strong>Note:</strong> This demo uses client-side simulation. For the full React+Flask experience, use npm start.
+        </div>
+
+        <div id="results" style="display:none;">
+            <div class="gantt-chart">
+                <h3>Gantt Chart</h3>
+                <div id="ganttChart"></div>
+            </div>
+
+            <div class="metrics" id="metrics"></div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data sets
+        const samples = [
+            [
+                {"pid": 1, "arrivalTime": 0, "burstTime": 5, "priority": 2, "queueLevel": 0},
+                {"pid": 2, "arrivalTime": 1, "burstTime": 3, "priority": 1, "queueLevel": 0},
+                {"pid": 3, "arrivalTime": 2, "burstTime": 8, "priority": 3, "queueLevel": 1},
+                {"pid": 4, "arrivalTime": 3, "burstTime": 6, "priority": 2, "queueLevel": 0}
+            ],
+            [
+                {"pid": 1, "arrivalTime": 0, "burstTime": 8, "priority": 3, "queueLevel": 0},
+                {"pid": 2, "arrivalTime": 1, "burstTime": 4, "priority": 1, "queueLevel": 0},
+                {"pid": 3, "arrivalTime": 2, "burstTime": 2, "priority": 2, "queueLevel": 0}
+            ],
+            [
+                {"pid": 1, "arrivalTime": 0, "burstTime": 10, "priority": 1, "queueLevel": 0},
+                {"pid": 2, "arrivalTime": 2, "burstTime": 5, "priority": 2, "queueLevel": 0},
+                {"pid": 3, "arrivalTime": 4, "burstTime": 7, "priority": 1, "queueLevel": 1},
+                {"pid": 4, "arrivalTime": 6, "burstTime": 3, "priority": 3, "queueLevel": 0}
+            ]
+        ];
+
+        let currentSample = 0;
+
+        // Algorithm selector
+        document.getElementById('algorithm').addEventListener('change', function() {
+            const alg = this.value;
+            document.getElementById('timeQuantumGroup').style.display = alg === 'rr' ? 'block' : 'none';
+            document.getElementById('preemptiveGroup').style.display = alg === 'priority' ? 'block' : 'none';
+        });
+
+        function loadSample() {
+            currentSample = (currentSample + 1) % samples.length;
+            document.getElementById('processData').value = JSON.stringify(samples[currentSample], null, 2);
+        }
+
+        async function runSimulation() {
+            try {
+                const algorithm = document.getElementById('algorithm').value;
+                const processData = JSON.parse(document.getElementById('processData').value);
+                const timeQuantum = parseInt(document.getElementById('timeQuantum').value);
+                const preemptive = document.getElementById('preemptive').checked;
+
+                const API_URL = 'http://localhost:5001';
+                
+                const response = await fetch(`${API_URL}/api/simulate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        algorithm,
+                        processes: processData,
+                        timeQuantum,
+                        preemptive,
+                        timeQuantums: [2, 4, 8]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Simulation failed');
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayResults(result.ganttChart, result.metrics);
+                    document.getElementById('error').style.display = 'none';
+                } else {
+                    showError(result.error);
+                }
+            } catch (err) {
+                showError('Error: ' + err.message + '. Make sure the Flask backend is running on port 5001.');
+            }
+        }
+
+        function displayResults(ganttChart, metrics) {
+            // Display Gantt Chart
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+            const maxTime = Math.max(...ganttChart.map(b => b.end));
+            
+            let ganttHTML = '<div class="gantt-timeline">';
+            ganttChart.forEach((block, index) => {
+                const width = ((block.end - block.start) / maxTime) * 100;
+                const color = colors[block.pid % colors.length];
+                ganttHTML += `
+                    <div class="gantt-block" style="width: ${width}%; background-color: ${color}; min-width: 60px;">
+                        <span>P${block.pid}</span>
+                        <small>${block.end - block.start}</small>
+                    </div>
+                `;
+            });
+            ganttHTML += '</div>';
+            
+            // Add time labels
+            const timePoints = [0, ...ganttChart.map(b => b.end)];
+            ganttHTML += '<div style="display: flex; justify-content: space-between; margin-top: 10px;">';
+            timePoints.forEach(t => {
+                ganttHTML += `<span style="font-weight: 600; font-size: 0.9em;">${t}</span>`;
+            });
+            ganttHTML += '</div>';
+            
+            document.getElementById('ganttChart').innerHTML = ganttHTML;
+
+            // Display Metrics
+            const metricsHTML = `
+                <div class="metric-card">
+                    <h3>Average Waiting Time</h3>
+                    <div class="value">${metrics.avg_waiting_time}</div>
+                    <small>time units</small>
+                </div>
+                <div class="metric-card">
+                    <h3>Average Turnaround Time</h3>
+                    <div class="value">${metrics.avg_turnaround_time}</div>
+                    <small>time units</small>
+                </div>
+                <div class="metric-card">
+                    <h3>CPU Utilization</h3>
+                    <div class="value">${metrics.cpu_utilization}%</div>
+                    <small>efficiency</small>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Processes</h3>
+                    <div class="value">${metrics.total_processes}</div>
+                    <small>processes</small>
+                </div>
+            `;
+            document.getElementById('metrics').innerHTML = metricsHTML;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
